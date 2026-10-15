@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NovaTech AI Assistant</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f0f1a;
+      color: #e2e8f0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: linear-gradient(135deg, #1a1a3e 0%, #2d1b69 50%, #1a1a3e 100%);
+      border-bottom: 1px solid #3d2f8a;
+      padding: 0 24px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .logo { display: flex; align-items: center; gap: 12px; }
+    .logo-icon {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, #7c3aed, #4f46e5);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+    }
+    .logo-text h1 { font-size: 16px; font-weight: 700; color: #f1f5f9; letter-spacing: -.3px; }
+    .logo-text p  { font-size: 11px; color: #a78bfa; letter-spacing: .5px; text-transform: uppercase; }
+
+    .header-right { display: flex; align-items: center; gap: 16px; }
+    .header-badge {
+      background: #16a34a22; border: 1px solid #16a34a55; color: #4ade80;
+      font-size: 11px; padding: 4px 10px; border-radius: 20px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .header-badge::before {
+      content: ''; width: 6px; height: 6px; background: #4ade80;
+      border-radius: 50%; animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+
+    /* ── Tab bar ── */
+    .tab-bar {
+      background: #13131f; border-bottom: 1px solid #1e1e3a;
+      padding: 0 24px; display: flex; gap: 4px; flex-shrink: 0;
+      overflow-x: auto; scrollbar-width: none;
+    }
+    .tab-bar::-webkit-scrollbar { display: none; }
+    .tab {
+      padding: 12px 18px; font-size: 13px; cursor: pointer;
+      border-bottom: 2px solid transparent; color: #64748b;
+      transition: all .2s; user-select: none; white-space: nowrap;
+    }
+    .tab.active { color: #a78bfa; border-bottom-color: #7c3aed; }
+    .tab:hover:not(.active) { color: #94a3b8; }
+
+    /* ── Panels ── */
+    .panel { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+    .panel.active { display: flex; }
+
+    /* ── Chat ── */
+    #chat-messages {
+      flex: 1; overflow-y: auto; padding: 24px;
+      display: flex; flex-direction: column; gap: 16px;
+      scrollbar-width: thin; scrollbar-color: #2d2d5e #0f0f1a;
+    }
+    .message { max-width: 72%; display: flex; flex-direction: column; gap: 4px; }
+    .message.user      { align-self: flex-end; align-items: flex-end; }
+    .message.assistant { align-self: flex-start; align-items: flex-start; }
+    .message-label { font-size: 10px; color: #475569; text-transform: uppercase; letter-spacing: .5px; padding: 0 4px; }
+    .message-bubble { padding: 12px 16px; border-radius: 16px; font-size: 14px; line-height: 1.6; }
+    .message.user .message-bubble {
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      color: #fff; border-bottom-right-radius: 4px;
+    }
+    .message.assistant .message-bubble {
+      background: #1e1e38; border: 1px solid #2d2d5e;
+      color: #e2e8f0; border-bottom-left-radius: 4px;
+    }
+
+    .typing-indicator {
+      align-self: flex-start; background: #1e1e38; border: 1px solid #2d2d5e;
+      border-radius: 16px; border-bottom-left-radius: 4px;
+      padding: 12px 18px; display: none;
+    }
+    .typing-indicator span {
+      display: inline-block; width: 8px; height: 8px; background: #7c3aed;
+      border-radius: 50%; animation: bounce 1.4s infinite ease-in-out; margin: 0 2px;
+    }
+    .typing-indicator span:nth-child(2) { animation-delay: .2s; }
+    .typing-indicator span:nth-child(3) { animation-delay: .4s; }
+    @keyframes bounce { 0%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-8px); } }
+
+    .chat-input-area {
+      padding: 16px 24px; background: #13131f; border-top: 1px solid #1e1e3a;
+      display: flex; gap: 12px; align-items: flex-end; flex-shrink: 0;
+    }
+    #chat-input {
+      flex: 1; background: #1e1e38; border: 1px solid #2d2d5e; color: #e2e8f0;
+      border-radius: 12px; padding: 12px 16px; font-size: 14px;
+      resize: none; min-height: 48px; max-height: 140px;
+      outline: none; font-family: inherit; line-height: 1.5; transition: border-color .2s;
+    }
+    #chat-input:focus { border-color: #7c3aed; }
+    #chat-input::placeholder { color: #475569; }
+
+    .send-btn {
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      border: none; border-radius: 12px; width: 48px; height: 48px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; transition: opacity .2s;
+    }
+    .send-btn:hover { opacity: .85; }
+    .send-btn:disabled { opacity: .4; cursor: not-allowed; }
+    .send-btn svg { width: 20px; height: 20px; fill: #fff; }
+
+    /* ── Nova Action Alert ── */
+    #action-alert {
+      display: none; margin: 0 24px 0; padding: 10px 16px;
+      background: #1a0f0f; border: 1px solid #7f1d1d;
+      border-left: 3px solid #f87171;
+      border-radius: 10px; font-size: 13px; color: #fca5a5;
+    }
+    #action-alert strong { color: #f87171; }
+    #action-alert code { font-family: monospace; background: #0f0f1a; padding: 1px 6px; border-radius: 4px; }
+
+    /* ── Welcome ── */
+    .welcome { text-align: center; padding: 48px 24px; color: #475569; }
+    .welcome-icon { font-size: 48px; margin-bottom: 16px; }
+    .welcome h2 { font-size: 20px; color: #94a3b8; margin-bottom: 8px; }
+    .welcome p  { font-size: 14px; line-height: 1.6; }
+    .suggestion-chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 24px; }
+    .chip {
+      background: #1e1e38; border: 1px solid #2d2d5e; color: #94a3b8;
+      padding: 8px 16px; border-radius: 20px; font-size: 13px;
+      cursor: pointer; transition: all .2s;
+    }
+    .chip:hover { border-color: #7c3aed; color: #a78bfa; }
+
+    /* ── Shared two-column layout ── */
+    .two-col-panel { padding: 24px; gap: 20px; }
+    .panel-title    { font-size: 16px; font-weight: 600; color: #f1f5f9; margin-bottom: 4px; }
+    .panel-subtitle { font-size: 13px; color: #64748b; margin-bottom: 20px; }
+    .two-col-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+      flex: 1; overflow: hidden;
+    }
+    .input-card, .output-card {
+      background: #1e1e38; border: 1px solid #2d2d5e;
+      border-radius: 12px; display: flex; flex-direction: column; overflow: hidden;
+    }
+    .card-header {
+      padding: 12px 16px; border-bottom: 1px solid #2d2d5e;
+      font-size: 12px; font-weight: 600; color: #a78bfa;
+      text-transform: uppercase; letter-spacing: .5px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .panel-textarea {
+      flex: 1; background: transparent; border: none; color: #e2e8f0;
+      padding: 16px; font-size: 13px; font-family: 'Courier New', monospace;
+      resize: none; outline: none; line-height: 1.6;
+    }
+    .panel-textarea::placeholder { color: #475569; }
+    .panel-output {
+      flex: 1; padding: 16px; font-size: 13px; color: #64748b;
+      line-height: 1.7; overflow-y: auto;
+    }
+    .action-btn {
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      border: none; border-radius: 8px; color: #fff;
+      padding: 10px 24px; font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: opacity .2s;
+    }
+    .action-btn:hover { opacity: .85; }
+    .action-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* ── Compose specific ── */
+    .compose-instructions {
+      background: transparent; border: none; color: #e2e8f0;
+      padding: 14px 16px; font-size: 13px; font-family: inherit;
+      resize: none; outline: none; line-height: 1.6; min-height: 80px;
+      border-bottom: 1px solid #2d2d5e;
+    }
+    .compose-instructions::placeholder { color: #475569; }
+    .context-label {
+      padding: 8px 16px; font-size: 11px; color: #475569;
+      text-transform: uppercase; letter-spacing: .5px; background: #16161f;
+      border-bottom: 1px solid #2d2d5e;
+    }
+
+    /* ── Feedback form ── */
+    .feedback-panel-inner { padding: 24px; gap: 16px; max-width: 680px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .form-field { display: flex; flex-direction: column; gap: 6px; }
+    .form-field label { font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: .5px; }
+    .form-field input, .form-field select {
+      background: #1e1e38; border: 1px solid #2d2d5e; color: #e2e8f0;
+      border-radius: 8px; padding: 10px 14px; font-size: 14px;
+      outline: none; font-family: inherit; transition: border-color .2s;
+    }
+    .form-field input:focus, .form-field select:focus { border-color: #7c3aed; }
+    .form-field select option { background: #1e1e38; }
+    .form-field input::placeholder { color: #475569; }
+    .feedback-textarea {
+      background: #1e1e38; border: 1px solid #2d2d5e; color: #e2e8f0;
+      border-radius: 8px; padding: 14px; font-size: 14px;
+      font-family: inherit; line-height: 1.6; resize: vertical;
+      min-height: 140px; outline: none; transition: border-color .2s;
+    }
+    .feedback-textarea:focus { border-color: #7c3aed; }
+    .feedback-textarea::placeholder { color: #475569; }
+    .success-msg { font-size: 13px; color: #4ade80; display: none; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">⬡</div>
+    <div class="logo-text">
+      <h1>NovaTech AI Assistant</h1>
+      <p>Nova · Enterprise Support</p>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="header-badge">Online</div>
+    <a href="/admin" style="font-size:12px;color:#475569;text-decoration:none;transition:color .2s" onmouseover="this.style.color='#a78bfa'" onmouseout="this.style.color='#475569'">Admin ↗</a>
+  </div>
+</header>
+
+<div class="tab-bar">
+  <div class="tab active" data-panel="chat-panel">Chat Support</div>
+  <div class="tab" data-panel="summarize-panel">Document Summarizer</div>
+  <div class="tab" data-panel="compose-panel">AI Compose</div>
+  <div class="tab" data-panel="ask-panel">Knowledge Base</div>
+  <div class="tab" data-panel="search-panel">Smart Search</div>
+  <div class="tab" data-panel="feedback-panel">Feedback</div>
+</div>
+
+<!-- ── Chat Panel ── -->
+<div class="panel active" id="chat-panel">
+  <!-- T-11: customer portal session bar — no auth validation, customer_id sent in request body (IDOR) -->
+  <div id="portal-bar" style="padding:8px 24px;background:#0d0d18;border-bottom:1px solid #1e1e3a;display:flex;align-items:center;gap:10px;flex-shrink:0;font-size:12px;color:#475569">
+    <span>Portal session:</span>
+    <select id="customer-select" onchange="updatePortalSession()" style="background:#1e1e38;border:1px solid #2d2d5e;color:#94a3b8;border-radius:6px;padding:3px 8px;font-size:12px;outline:none;cursor:pointer">
+      <option value="">— No session (public chat) —</option>
+      <option value="cust-00001">cust-00001 · Acme Corp · Enterprise</option>
+      <option value="cust-00002">cust-00002 · Globex Industries · Growth</option>
+      <option value="cust-00003">cust-00003 · Initech Solutions · Enterprise</option>
+      <option value="cust-00004">cust-00004 · Umbrella LLC · Starter</option>
+      <option value="cust-00005">cust-00005 · Massive Dynamic · Enterprise</option>
+    </select>
+    <span id="portal-active" style="color:#4ade80;display:none">● session active</span>
+  </div>
+  <div id="chat-messages">
+    <div class="welcome" id="welcome-msg">
+      <div class="welcome-icon">⬡</div>
+      <h2>Hi, I'm Nova!</h2>
+      <p>NovaTech's AI support assistant. Ask me anything about our products, billing, or technical setup.</p>
+      <div class="suggestion-chips">
+        <div class="chip" onclick="sendSuggestion(this)">What products do you offer?</div>
+        <div class="chip" onclick="sendSuggestion(this)">How does pricing work?</div>
+        <div class="chip" onclick="sendSuggestion(this)">I need help with billing</div>
+        <div class="chip" onclick="sendSuggestion(this)">What integrations are available?</div>
+        <div class="chip" onclick="sendSuggestion(this)">What's your uptime SLA?</div>
+      </div>
+    </div>
+  </div>
+  <!-- Nova Action Alert (LLM06 — Excessive Agency — fires when injection triggers a backend action) -->
+  <div id="action-alert"></div>
+  <div class="typing-indicator" id="typing"><span></span><span></span><span></span></div>
+  <div class="chat-input-area">
+    <textarea id="chat-input" placeholder="Message Nova…" rows="1"></textarea>
+    <button class="send-btn" id="send-btn" onclick="sendMessage()">
+      <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- ── Summarizer Panel ── -->
+<div class="panel two-col-panel" id="summarize-panel">
+  <p class="panel-title">Document Summarizer</p>
+  <p class="panel-subtitle">Paste any document — reports, contracts, emails — and Nova will summarise it.</p>
+  <div class="two-col-grid">
+    <div class="input-card">
+      <div class="card-header">
+        Input Document
+        <button class="action-btn" id="summarize-btn" onclick="summarizeDoc()">Summarize</button>
+      </div>
+      <textarea class="panel-textarea" id="doc-input" placeholder="Paste your document here…&#10;&#10;Reports, emails, contracts, meeting notes…"></textarea>
+    </div>
+    <div class="output-card">
+      <div class="card-header">Summary</div>
+      <!-- Deliberate: innerHTML renders LLM output without sanitisation -->
+      <div class="panel-output" id="summary-output">Summary will appear here.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── AI Compose Panel ── -->
+<div class="panel two-col-panel" id="compose-panel">
+  <p class="panel-title">AI Compose</p>
+  <p class="panel-subtitle">Draft professional emails, executive summaries, and internal communications.</p>
+  <div class="two-col-grid">
+    <div class="input-card">
+      <div class="card-header">
+        Compose
+        <button class="action-btn" id="compose-btn" onclick="composeDoc()">Generate</button>
+      </div>
+      <textarea class="compose-instructions" id="compose-instructions"
+        placeholder="What do you want to write?&#10;e.g. Draft a follow-up email to a customer whose ticket was resolved"></textarea>
+      <div class="context-label">Context / background (optional)</div>
+      <textarea class="panel-textarea" id="compose-context"
+        placeholder="Paste prior email thread, customer details, or any relevant context here…"></textarea>
+    </div>
+    <div class="output-card">
+      <div class="card-header">Draft</div>
+      <!-- Deliberate: innerHTML renders LLM output without sanitisation -->
+      <div class="panel-output" id="compose-output">Your draft will appear here.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Knowledge Base Panel ── -->
+<div class="panel two-col-panel" id="ask-panel">
+  <p class="panel-title">Knowledge Base</p>
+  <p class="panel-subtitle">Ask anything — Nova searches our documentation and answers from it.</p>
+  <div class="two-col-grid">
+    <div class="input-card">
+      <div class="card-header">
+        Your Question
+        <button class="action-btn" id="ask-btn" onclick="askKB()">Search</button>
+      </div>
+      <textarea class="panel-textarea" id="ask-input"
+        placeholder="e.g. What is your refund policy?&#10;Do you have an API?&#10;What security certifications do you hold?&#10;How do I set up SSO?"></textarea>
+    </div>
+    <div class="output-card">
+      <div class="card-header">Answer</div>
+      <!-- Deliberate: innerHTML renders LLM output -->
+      <div class="panel-output" id="ask-output">Answer will appear here.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Smart Search Panel (T-09 — SQL injection via LLM output) ── -->
+<div class="panel two-col-panel" id="search-panel">
+  <p class="panel-title">Smart Search</p>
+  <p class="panel-subtitle">Ask questions in plain English — Nova generates and executes the query automatically.</p>
+  <div class="two-col-grid">
+    <div class="input-card">
+      <div class="card-header">
+        Natural Language Query
+        <button class="action-btn" id="search-btn" onclick="runSearch()">Search</button>
+      </div>
+      <textarea class="panel-textarea" id="search-input"
+        placeholder="e.g. Show all bug reports&#10;List recent actions&#10;How many feedbacks this week?&#10;Show feedbacks from jsmith-ops"></textarea>
+    </div>
+    <div class="output-card">
+      <div class="card-header" id="search-sql-header">Generated SQL &amp; Results</div>
+      <!-- Deliberate: innerHTML renders LLM-generated content without sanitisation -->
+      <div class="panel-output" id="search-output">Results will appear here.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Feedback Panel ── -->
+<div class="panel" id="feedback-panel" style="overflow-y:auto">
+  <div class="feedback-panel-inner" style="display:flex;flex-direction:column;padding:24px;gap:16px;max-width:680px">
+    <p class="panel-title">Submit Feedback</p>
+    <p class="panel-subtitle">Help us improve NovaTech. Your feedback is reviewed by our team.</p>
+
+    <div class="form-row">
+      <div class="form-field">
+        <label>Name <span style="color:#475569">(optional)</span></label>
+        <input type="text" id="fb-name" placeholder="Your name or handle" />
+      </div>
+      <div class="form-field">
+        <label>Category</label>
+        <select id="fb-category">
+          <option value="General">General</option>
+          <option value="Bug Report">Bug Report</option>
+          <option value="Feature Request">Feature Request</option>
+          <option value="Billing">Billing</option>
+          <option value="Security">Security</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-field">
+      <label>Message</label>
+      <textarea class="feedback-textarea" id="feedback-input" placeholder="Tell us about your experience…"></textarea>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:16px">
+      <button class="action-btn" id="feedback-btn" onclick="submitFeedback()">Submit Feedback</button>
+      <span class="success-msg" id="feedback-msg">Thank you — feedback received!</span>
+    </div>
+  </div>
+</div>
+
+<script>
+  const history = [];
+  let currentCustomerId = '';
+
+  function updatePortalSession() {
+    currentCustomerId = document.getElementById('customer-select').value;
+    document.getElementById('portal-active').style.display = currentCustomerId ? 'inline' : 'none';
+  }
+
+  // ── Tab switching ──
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById(tab.dataset.panel).classList.add('active');
+    });
+  });
+
+  // ── Chat ──
+  function sendSuggestion(el) {
+    document.getElementById('chat-input').value = el.textContent;
+    sendMessage();
+  }
+
+  function sendMessage() {
+    const input = document.getElementById('chat-input');
+    const text  = input.value.trim();
+    if (!text) return;
+
+    document.getElementById('welcome-msg')?.remove();
+    appendMessage('user', text);
+    history.push({ role: 'user', content: text });
+    input.value = '';
+    input.style.height = '';
+
+    const sendBtn = document.getElementById('send-btn');
+    const typing  = document.getElementById('typing');
+    sendBtn.disabled = true;
+    typing.style.display = 'block';
+    scrollToBottom();
+
+    fetch('/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text, history: history.slice(0, -1), customer_id: currentCustomerId })
+    })
+    .then(r => r.json())
+    .then(data => {
+      typing.style.display = 'none';
+      sendBtn.disabled = false;
+      const response = data.response || data.error || 'An error occurred.';
+      history.push({ role: 'assistant', content: response });
+      appendMessage('assistant', response);
+      if (data.actions && data.actions.length) showActionAlert(data.actions);
+    })
+    .catch(() => {
+      typing.style.display = 'none';
+      sendBtn.disabled = false;
+      appendMessage('assistant', '[Connection error]');
+    });
+  }
+
+  function appendMessage(role, content) {
+    const wrap   = document.createElement('div');
+    wrap.className = `message ${role}`;
+    const label  = document.createElement('div');
+    label.className = 'message-label';
+    label.textContent = role === 'user' ? 'You' : 'Nova';
+    const bubble = document.createElement('div');
+    bubble.className = 'message-bubble';
+    // Deliberate XSS: innerHTML renders LLM output as HTML
+    bubble.innerHTML = content;
+    wrap.appendChild(label);
+    wrap.appendChild(bubble);
+    document.getElementById('chat-messages').appendChild(wrap);
+    scrollToBottom();
+  }
+
+  function scrollToBottom() {
+    const msgs = document.getElementById('chat-messages');
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  document.getElementById('chat-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  });
+
+  function showActionAlert(actions) {
+    const alert = document.getElementById('action-alert');
+    const lines = actions.map(a => {
+      const params = Object.entries(a).filter(([k]) => k !== 'type').map(([k,v]) => `${k}=${v}`).join(' ');
+      return `<code>[NOVA_ACTION: type=${a.type} ${params}]</code>`;
+    }).join('<br>');
+    alert.innerHTML = `<strong>NOVA ACTION EXECUTED</strong> &mdash; LLM06:2025 Excessive Agency<br>${lines}<br><span style="color:#64748b;font-size:11px">Logged to /admin/actions</span>`;
+    alert.style.display = 'block';
+    setTimeout(() => { alert.style.display = 'none'; }, 12000);
+  }
+
+  document.getElementById('chat-input').addEventListener('input', function() {
+    this.style.height = '';
+    this.style.height = Math.min(this.scrollHeight, 140) + 'px';
+  });
+
+  // ── Summarizer ──
+  function summarizeDoc() {
+    const doc = document.getElementById('doc-input').value.trim();
+    if (!doc) return;
+    const btn    = document.getElementById('summarize-btn');
+    const output = document.getElementById('summary-output');
+    btn.disabled = true; btn.textContent = 'Summarizing…';
+    output.style.color = '#64748b'; output.textContent = 'Processing…';
+
+    fetch('/summarize', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ document: doc })
+    })
+    .then(r => r.json())
+    .then(data => {
+      btn.disabled = false; btn.textContent = 'Summarize';
+      output.style.color = '#e2e8f0';
+      // Deliberate: innerHTML renders LLM output without sanitisation
+      output.innerHTML = data.response || data.error || 'Error.';
+    })
+    .catch(() => { btn.disabled = false; btn.textContent = 'Summarize'; output.textContent = '[Connection error]'; });
+  }
+
+  // ── AI Compose ──
+  function composeDoc() {
+    const instructions = document.getElementById('compose-instructions').value.trim();
+    const context      = document.getElementById('compose-context').value.trim();
+    if (!instructions) return;
+    const btn    = document.getElementById('compose-btn');
+    const output = document.getElementById('compose-output');
+    btn.disabled = true; btn.textContent = 'Generating…';
+    output.style.color = '#64748b'; output.textContent = 'Drafting…';
+
+    fetch('/compose', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ instructions, context })
+    })
+    .then(r => r.json())
+    .then(data => {
+      btn.disabled = false; btn.textContent = 'Generate';
+      output.style.color = '#e2e8f0';
+      // Deliberate: innerHTML renders LLM output without sanitisation
+      output.innerHTML = data.response || data.error || 'Error.';
+    })
+    .catch(() => { btn.disabled = false; btn.textContent = 'Generate'; output.textContent = '[Connection error]'; });
+  }
+
+  // ── Knowledge Base ──
+  function askKB() {
+    const question = document.getElementById('ask-input').value.trim();
+    if (!question) return;
+    const btn    = document.getElementById('ask-btn');
+    const output = document.getElementById('ask-output');
+    btn.disabled = true; btn.textContent = 'Searching…';
+    output.style.color = '#64748b'; output.textContent = 'Searching knowledge base…';
+
+    fetch('/ask', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question })
+    })
+    .then(r => r.json())
+    .then(data => {
+      btn.disabled = false; btn.textContent = 'Search';
+      output.style.color = '#e2e8f0';
+      // Deliberate: innerHTML renders LLM output
+      output.innerHTML = data.response || data.error || 'Error.';
+    })
+    .catch(() => { btn.disabled = false; btn.textContent = 'Search'; output.textContent = '[Connection error]'; });
+  }
+
+  document.getElementById('ask-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); askKB(); }
+  });
+
+  // ── Smart Search (T-09) ──
+  function runSearch() {
+    const question = document.getElementById('search-input').value.trim();
+    if (!question) return;
+    const btn    = document.getElementById('search-btn');
+    const output = document.getElementById('search-output');
+    const header = document.getElementById('search-sql-header');
+    btn.disabled = true; btn.textContent = 'Querying…';
+    output.style.color = '#64748b'; output.textContent = 'Generating SQL…';
+
+    fetch('/search', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question })
+    })
+    .then(r => r.json())
+    .then(data => {
+      btn.disabled = false; btn.textContent = 'Search';
+      if (data.error) {
+        header.textContent = 'SQL Error';
+        output.style.color = '#f87171';
+        output.innerHTML = `<strong>Error</strong><br><code style="font-family:monospace;font-size:12px;color:#a78bfa">${data.sql}</code><br><br><span style="color:#f87171">${data.error}</span>`;
+      } else {
+        header.textContent = `Generated SQL — ${data.count} row(s)`;
+        output.style.color = '#e2e8f0';
+        let html = `<code style="font-family:monospace;font-size:12px;color:#a78bfa;display:block;margin-bottom:12px;word-break:break-all">${data.sql}</code>`;
+        if (data.results && data.results.length) {
+          html += `<table style="width:100%;border-collapse:collapse;font-size:12px">`;
+          html += `<tr>${data.columns.map(c => `<th style="text-align:left;padding:5px 8px;border-bottom:1px solid #2d2d5e;color:#64748b;font-weight:600">${c}</th>`).join('')}</tr>`;
+          data.results.forEach(row => {
+            html += `<tr>${data.columns.map(c => `<td style="padding:5px 8px;border-bottom:1px solid #1e1e38;vertical-align:top;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${String(row[c]??'').replace(/"/g,'&quot;')}">${row[c] ?? ''}</td>`).join('')}</tr>`;
+          });
+          html += `</table>`;
+        } else {
+          html += '<em style="color:#64748b">No results returned.</em>';
+        }
+        // Deliberate: innerHTML renders LLM-generated SQL results without sanitisation
+        output.innerHTML = html;
+      }
+    })
+    .catch(() => { btn.disabled = false; btn.textContent = 'Search'; output.textContent = '[Connection error]'; });
+  }
+
+  document.getElementById('search-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); runSearch(); }
+  });
+
+  // ── Feedback ──
+  function submitFeedback() {
+    const text     = document.getElementById('feedback-input').value.trim();
+    const name     = document.getElementById('fb-name').value.trim() || 'Anonymous';
+    const category = document.getElementById('fb-category').value;
+    if (!text) return;
+    const btn = document.getElementById('feedback-btn');
+    const msg = document.getElementById('feedback-msg');
+    btn.disabled = true; btn.textContent = 'Submitting…';
+
+    fetch('/feedback', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, category, text })
+    })
+    .then(r => r.json())
+    .then(data => {
+      btn.disabled = false; btn.textContent = 'Submit Feedback';
+      if (data.success) {
+        document.getElementById('feedback-input').value = '';
+        document.getElementById('fb-name').value = '';
+        document.getElementById('fb-category').value = 'General';
+        msg.style.display = 'block';
+        setTimeout(() => { msg.style.display = 'none'; }, 3000);
+      }
+    })
+    .catch(() => { btn.disabled = false; btn.textContent = 'Submit Feedback'; });
+  }
+</script>
+</body>
+</html>
